@@ -200,7 +200,15 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+  /*
+  P1-2: if new thread's priority [>] now running's priority, change it immediately(make the new run)
+  zmq-2021-10-28
+  */
+  if(thread_current()->priority < priority)
+  {
+  thread_yield();
+  }
+  /*** end ***/
   return tid;
 }
 
@@ -228,6 +236,20 @@ thread_block (void)
    be important: if the caller had disabled interrupts itself,
    it may expect that it can atomically unblock a thread and
    update other data. */
+
+/*
+P1-2: list cmp function
+zmq-2021-10-28
+*/
+bool
+thread_cmp_priority (const struct list_elem *a, const struct list_elem *b, void
+*aux UNUSED)
+{
+return list_entry(a, struct thread, elem)->priority > list_entry(b, struct
+thread, elem)->priority;
+}
+/*** end ***/
+
 void
 thread_unblock (struct thread *t) 
 {
@@ -237,7 +259,13 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  /*
+  P1-2: order-insert
+  zmq-2021-10-28
   list_push_back (&ready_list, &t->elem);
+  */
+  list_insert_ordered (&ready_list, &t->elem, (list_less_func *) &thread_cmp_priority, NULL);
+  /*** end ***/
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -308,7 +336,13 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
+    /*
+    P1-2: order-insert
+    zmq-2021-10-28
     list_push_back (&ready_list, &cur->elem);
+    */
+    list_insert_ordered (&ready_list, &cur->elem, (list_less_func *) &thread_cmp_priority, NULL);
+    /*** end ***/
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -336,6 +370,12 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  /*
+  P1-2: add thread to ready_list when set priority
+  zmq-2021-10-28
+  */
+  thread_yield();
+  /*** end ***/
 }
 
 /* Returns the current thread's priority. */
@@ -465,7 +505,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
+  /*
+  P1-2: order-insert
+  zmq-2021-10-28
   list_push_back (&all_list, &t->allelem);
+  */
+  list_insert_ordered (&all_list, &t->allelem, (list_less_func *) &thread_cmp_priority, NULL);
+  /*** end ***/
   intr_set_level (old_level);
 }
 
