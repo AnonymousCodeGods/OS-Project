@@ -89,6 +89,7 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+    int16_t blocked_ticks;              /* Blocked ticks for sleep */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -138,4 +139,10 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+<<<<<<< HEAD
+=======
+/* Reduce blocked ticks of the sleeping thread. */
+void thread_check_blocked (struct thread *t, void *aux);
+
+>>>>>>> origin/p1-1
 #endif /* threads/thread.h */

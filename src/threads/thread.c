@@ -182,6 +182,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  t->blocked_ticks = 0;
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -209,6 +210,7 @@ thread_create (const char *name, int priority,
   thread_yield();
   }
   /*** end ***/
+
   return tid;
 }
 
@@ -628,3 +630,15 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+/* Reduce blocked ticks of the sleeping thread. */
+void
+thread_check_blocked (struct thread *t, void *aux)
+{
+  if (t->status == THREAD_BLOCKED && t->blocked_ticks > 0) 
+    {
+      t->blocked_ticks--;
+      if (t->blocked_ticks == 0)
+        thread_unblock(t);
+    }
+}
