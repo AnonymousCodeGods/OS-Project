@@ -139,10 +139,7 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-<<<<<<< HEAD
-=======
 /* Reduce blocked ticks of the sleeping thread. */
 void thread_check_blocked (struct thread *t, void *aux);
 
->>>>>>> origin/p1-1
 #endif /* threads/thread.h */
