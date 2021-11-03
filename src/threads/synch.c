@@ -188,16 +188,47 @@ lock_init (struct lock *lock)
    This function may sleep, so it must not be called within an
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
-   we need to sleep. */
+   we need to sleep.
+   修改后：首先获取当前线程，然后更新目前锁上保留的最大优先级，如果这个线程需要的锁
+   正在被某个线程拿着，就把自己的优先级给它，同时如果这个线程也有正在等待的锁，就更新
+   l的值，然后不断反复这个过程。循环结束后，说明当前的 */
 void
 lock_acquire (struct lock *lock)
 {
+  struct thread *current_thread = thread_current ();
+  struct lock *l;
+  enum intr_level old_level;
+
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  if (lock->holder != NULL && !thread_mlfqs)
+  {
+    current_thread->lock_waiting = lock;
+    l = lock;
+    while (l && current_thread->priority > l->max_priority)
+    {
+      l->max_priority = current_thread->priority;
+      thread_donate_priority (l->holder);
+      l = l->holder->lock_waiting;
+    }
+  }
+
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+
+  old_level = intr_disable ();
+
+  current_thread = thread_current ();
+  if (!thread_mlfqs)
+  {
+    current_thread->lock_waiting = NULL;
+    lock->max_priority = current_thread->priority;
+    thread_hold_the_lock (lock);
+  }
+  lock->holder = current_thread;
+
+  intr_set_level (old_level);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false

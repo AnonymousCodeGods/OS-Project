@@ -93,6 +93,9 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    int base_priority; 
+    struct list locks; //持有的锁
+    struct lock *lock_waiting; //正在等待的锁
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
