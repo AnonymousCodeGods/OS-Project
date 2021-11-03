@@ -417,7 +417,7 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
