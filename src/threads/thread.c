@@ -366,7 +366,8 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
-/* Sets the current thread's priority to NEW_PRIORITY. */
+/*m2：set priority之前要先看看持有的锁里面的最大优先级，不能直接更新。当锁释放后，再从base_priority中
+取出来再恢复。*/
 void
 thread_set_priority (int new_priority)
 {
@@ -636,7 +637,7 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-/* Let thread hold a lock */
+/*m2：更新这个线程持有的锁的list，即加进去，同时更新这个锁的maxproirity*/
 void
 thread_hold_the_lock(struct lock *lock)
 {
@@ -652,7 +653,7 @@ thread_hold_the_lock(struct lock *lock)
   intr_set_level (old_level);
 }
 
-/* Remove a lock. */
+/*m2：将锁从线程的持有锁的列表中剔除。*/
 void
 thread_remove_lock (struct lock *lock)
 {
@@ -662,7 +663,9 @@ thread_remove_lock (struct lock *lock)
   intr_set_level (old_level);
 }
 
-/* Donate current priority to thread t. */
+/*m2：捐献优先级给线程t，更新之前先update一下t的优先级，因为t可能持有多个锁。然后将t重新扔进readylist就行。
+donate做的就是更新下持有锁的线程的priority再扔进队列重新决定跑的顺序。而线程通过遍历自己拥有的锁的各自的maxpriority就能
+知道自己目前的优先级。*/
 void
 thread_donate_priority (struct thread *t)
 {
@@ -676,7 +679,9 @@ thread_donate_priority (struct thread *t)
   }
   intr_set_level (old_level);
 }
-/* Update priority. */
+/*m2：由于已经实现了线程持有锁的优先级队列，所以直接排序后取列表第一个锁的max_priority作为自己的优先级就行
+如果大于base_priority就更新线程当前的priority
+*/
 void
 thread_update_priority (struct thread *t)
 {
@@ -695,7 +700,7 @@ thread_update_priority (struct thread *t)
   t->priority = max_priority;
   intr_set_level (old_level);
 }
-/* lock comparation function */
+/*m2：实现线程持有锁的优先级队列。按锁的max_priority去排序*/
 bool
 lock_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
