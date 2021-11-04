@@ -79,7 +79,10 @@ void thread_update_priority (struct thread *t);
 bool lock_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 bool thread_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
-/* priority compare function. */
+/*
+线程优先级比较函数
+P1-2-zmq-2021-10-28
+*/
 bool
 thread_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
@@ -217,7 +220,11 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  if(thread_current()->priority<priority)
+  /*
+  创建线程时，如果新线程的优先级大于当前正在跑的线程，就马上进行切换，换新进程跑
+  P1-2-zmq-2021-10-28
+  */
+  if(thread_current()->priority < priority)
   {
 	thread_yield();
   }
@@ -272,6 +279,11 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  /*
+  （解除阻塞时）把当前线程从运行态转为就绪态，并插入到按优先级有序的就绪队列中
+  P1-2-zmq-2021-10-28
+  // list_push_back (&ready_list, &t->elem);
+  */
   list_insert_ordered (&ready_list, &t->elem, (list_less_func *) &thread_cmp_priority, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -343,7 +355,12 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered (&ready_list, &cur->elem,(list_less_func*)&thread_cmp_priority,NULL);
+    /*
+    把当前线程从运行态转为就绪态，并插入到按优先级有序的就绪队列中
+    P1-2-zmq-2021-10-28
+    // list_push_back (&ready_list, &cur->elem);
+    */
+    list_insert_ordered (&ready_list, &cur->elem, (list_less_func *) &thread_cmp_priority, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -382,6 +399,10 @@ thread_set_priority (int new_priority)
 
   if (list_empty (&current_thread->locks) || new_priority > old_priority)
   {
+    /*
+    如果设置的新优先级高于当前线程，就马上执行切换
+    P1-2-zmq-2021-10-28
+    */
     current_thread->priority = new_priority;
     thread_yield ();
   }
@@ -519,6 +540,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->lock_waiting = NULL;
 
   old_level = intr_disable ();
+  /*
+  线程初始化时将其加入就绪队列
+  P1-2-zmq-2021-10-28
+  // list_push_back (&all_list, &t->allelem);
+  */
   list_insert_ordered (&all_list, &t->allelem, (list_less_func *) &thread_cmp_priority, NULL);
   intr_set_level (old_level);
 }
