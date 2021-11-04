@@ -104,6 +104,7 @@ struct thread
 #endif
 
     /* Owned by thread.c. */
+    /*m2：base priority用于记录原来的priority，priority代表现在的，locks代表这个thread有什么锁，lock_waiting代表它正在等待什么锁*/
     unsigned magic;                     /* Detects stack overflow. */
     int base_priority;                  /* Base priority. */
     struct list locks;                  /* Locks that the thread is holding. */

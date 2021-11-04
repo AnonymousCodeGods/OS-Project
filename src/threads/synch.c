@@ -59,6 +59,9 @@ sema_init (struct semaphore *sema, unsigned value)
    interrupt handler.  This function may be called with
    interrupts disabled, but if it sleeps then the next scheduled
    thread will probably turn interrupts back on. */
+
+/*m2：当线程想获取信号量时，若信号量值没了，那么就把线程按照优先级的顺序加入到信号量的等待队伍里面。然后阻塞，否则就正常地信号量
+减1就行了*/
 void
 sema_down (struct semaphore *sema)
 {
@@ -107,6 +110,9 @@ sema_try_down (struct semaphore *sema)
    and wakes up one thread of those waiting for SEMA, if any.
 
    This function may be called from an interrupt handler. */
+
+/*对一个信号量来说，它有可能被多个线程需要，那么它的waiters这个队列里面，实现按线程优先级排序，有助于当sema有
+值的时候，去唤醒那个最高优先级的线程。*/
 void
 sema_up (struct semaphore *sema)
 {
@@ -195,6 +201,9 @@ lock_init (struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+/*m2：修改了获取锁的函数，一个线程获取某个锁时，会检查这个锁是否被某个线程持有
+若被持有，那么就会记录，并检查持有锁的那个线程是否又被其他线程所制约。同时每次更新锁的max_priority，
+并捐赠给持有锁的线程，其实就是个连环套的过程。当l为NULL时可以跳出。执行完成后就可以开始后面正常的获取锁的过程。*/
 void
 lock_acquire (struct lock *lock)
 {
@@ -344,6 +353,9 @@ cond_wait (struct condition *cond, struct lock *lock)
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to signal a condition variable within an
    interrupt handler. */
+
+/*m2：当条件满足时唤醒线程，唤醒线程即通过增加信号量来完成。也应该按照优先级来唤醒。信号量就相当于锁，锁一旦释放了也是先给
+更高优先级的acquire。*/
 void
 cond_signal (struct condition *cond, struct lock *lock UNUSED)
 {
@@ -354,6 +366,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
 
   if (!list_empty (&cond->waiters))
   {
+    /*m2：这里需要注意：一个条件变量是被多个信号量所等待的，一个信号量又会被多个线程等待。*/
     list_sort (&cond->waiters, cond_sema_cmp_priority, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters), struct semaphore_elem, elem)->semaphore);
   }
@@ -374,7 +387,7 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
 }
-/* cond sema comparation function */
+/*m2：实现信号量优先级队列的比较函数。这里是按照等待信号量的线程的优先级来排的。即不同信号量，被不同优先级的线程所等待。*/
 bool
 cond_sema_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {

@@ -22,6 +22,8 @@ struct lock
   {
     struct thread *holder;      /* Thread holding lock (for debugging). */
     struct semaphore semaphore; /* Binary semaphore controlling access. */
+    /*m2：加入elem以便于将锁能放进list内部，max_priority是多个thread同时请求该锁时
+    他们当中优先级最大的，以便于赋值给被捐赠的线程。*/
     struct list_elem elem;      /* List element for priority donation. */
     int max_priority;          /* Max priority among the threads acquiring the lock. */
   };

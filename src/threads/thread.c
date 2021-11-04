@@ -11,7 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#include "threads/fixed_point.h"
+#include "threads/fixed_point.h"//引入浮点数计算的头函数 
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -79,7 +79,10 @@ void thread_update_priority (struct thread *t);
 bool lock_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 bool thread_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
-/* priority compare function. */
+/*
+线程优先级比较函数
+P1-2-zmq-2021-10-28
+*/
 bool
 thread_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
@@ -218,7 +221,11 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  if(thread_current()->priority<priority)
+  /*
+  创建线程时，如果新线程的优先级大于当前正在跑的线程，就马上进行切换，换新进程跑
+  P1-2-zmq-2021-10-28
+  */
+  if(thread_current()->priority < priority)
   {
 	thread_yield();
   }
@@ -273,6 +280,11 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  /*
+  （解除阻塞时）把当前线程从运行态转为就绪态，并插入到按优先级有序的就绪队列中
+  P1-2-zmq-2021-10-28
+  // list_push_back (&ready_list, &t->elem);
+  */
   list_insert_ordered (&ready_list, &t->elem, (list_less_func *) &thread_cmp_priority, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -344,7 +356,12 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered (&ready_list, &cur->elem,(list_less_func*)&thread_cmp_priority,NULL);
+    /*
+    把当前线程从运行态转为就绪态，并插入到按优先级有序的就绪队列中
+    P1-2-zmq-2021-10-28
+    // list_push_back (&ready_list, &cur->elem);
+    */
+    list_insert_ordered (&ready_list, &cur->elem, (list_less_func *) &thread_cmp_priority, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -367,7 +384,8 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
-/* Sets the current thread's priority to NEW_PRIORITY. */
+/*m2：set priority之前要先看看持有的锁里面的最大优先级，不能直接更新。当锁释放后，再从base_priority中
+取出来再恢复。*/
 void
 thread_set_priority (int new_priority)
 {
@@ -382,6 +400,10 @@ thread_set_priority (int new_priority)
 
   if (list_empty (&current_thread->locks) || new_priority > old_priority)
   {
+    /*
+    如果设置的新优先级高于当前线程，就马上执行切换
+    P1-2-zmq-2021-10-28
+    */
     current_thread->priority = new_priority;
     thread_yield ();
   }
@@ -519,6 +541,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->lock_waiting = NULL;
 
   old_level = intr_disable ();
+  /*
+  线程初始化时将其加入就绪队列
+  P1-2-zmq-2021-10-28
+  // list_push_back (&all_list, &t->allelem);
+  */
   list_insert_ordered (&all_list, &t->allelem, (list_less_func *) &thread_cmp_priority, NULL);
   intr_set_level (old_level);
 }
@@ -637,7 +664,7 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-/* Let thread hold a lock */
+/*m2：更新这个线程持有的锁的list，即加进去，同时更新这个锁的maxproirity*/
 void
 thread_hold_the_lock(struct lock *lock)
 {
@@ -653,7 +680,7 @@ thread_hold_the_lock(struct lock *lock)
   intr_set_level (old_level);
 }
 
-/* Remove a lock. */
+/*m2：将锁从线程的持有锁的列表中剔除。*/
 void
 thread_remove_lock (struct lock *lock)
 {
@@ -663,7 +690,9 @@ thread_remove_lock (struct lock *lock)
   intr_set_level (old_level);
 }
 
-/* Donate current priority to thread t. */
+/*m2：捐献优先级给线程t，更新之前先update一下t的优先级，因为t可能持有多个锁。然后将t重新扔进readylist就行。
+donate做的就是更新下持有锁的线程的priority再扔进队列重新决定跑的顺序。而线程通过遍历自己拥有的锁的各自的maxpriority就能
+知道自己目前的优先级。*/
 void
 thread_donate_priority (struct thread *t)
 {
@@ -677,7 +706,9 @@ thread_donate_priority (struct thread *t)
   }
   intr_set_level (old_level);
 }
-/* Update priority. */
+/*m2：由于已经实现了线程持有锁的优先级队列，所以直接排序后取列表第一个锁的max_priority作为自己的优先级就行
+如果大于base_priority就更新线程当前的priority
+*/
 void
 thread_update_priority (struct thread *t)
 {
@@ -696,7 +727,7 @@ thread_update_priority (struct thread *t)
   t->priority = max_priority;
   intr_set_level (old_level);
 }
-/* lock comparation function */
+/*m2：实现线程持有锁的优先级队列。按锁的max_priority去排序*/
 bool
 lock_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
@@ -705,10 +736,10 @@ lock_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *a
 
 /* Increase recent_cpu by 1. */
 void
-thread_increase_recent_cpu_by_one (void)
+thread_increase_recent_cpu_by_one (void)//每一个tick，recent_cpu会+1 
 {
-  ASSERT (thread_mlfqs);
-  ASSERT (intr_context ());
+  ASSERT (thread_mlfqs);//断言此时的这个bool变量为true 
+  ASSERT (intr_context ());//断言为外部中断 
 
   struct thread *current_thread = thread_current ();
   if (current_thread == idle_thread)
@@ -739,13 +770,13 @@ thread_update_load_avg_and_recent_cpu (void)
   ASSERT (intr_context ());
 
   size_t ready_threads = list_size (&ready_list);
-  if (thread_current () != idle_thread)
-    ready_threads++;
+  if (thread_current () != idle_thread)//不是空闲的，那就在ready里面加一个（计算load_avg要用）
+    ready_threads++;//处于就绪态和运行态的线程
   load_avg = ADD (DIV_MIX (MULT_MIX (load_avg, 59), 60), DIV_MIX (CONST (ready_threads), 60));
 
   struct thread *t;
   struct list_elem *e = list_begin (&all_list);
-  for (; e != list_end (&all_list); e = list_next (e))
+  for (; e != list_end (&all_list); e = list_next (e))//就是对所有队列里的每一个线程去更新一下cpu和priority（更新操作的核心）
   {
     t = list_entry(e, struct thread, allelem);
     if (t != idle_thread)
@@ -755,5 +786,4 @@ thread_update_load_avg_and_recent_cpu (void)
     }
   }
 }
-
 
