@@ -198,6 +198,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  /* 初始化ticks_blocked */
   t->ticks_blocked = 0;
 
   /* Stack frame for kernel_thread(). */
@@ -241,7 +242,7 @@ thread_block (void)
   schedule ();
 }
 
-/* Check the blocked thread */
+/* 检查阻塞线程的睡眠时间 */
 void
 blocked_thread_check (struct thread *t, void *aux UNUSED)
 {

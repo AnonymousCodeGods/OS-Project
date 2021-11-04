@@ -84,11 +84,11 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
-/* Sleeps for approximately TICKS timer ticks.  Interrupts must
-   be turned on. */
+/* m1 利用阻塞机制改写，避免“忙等待” */
 void
 timer_sleep (int64_t ticks) 
 {
+  // ticks非正直接返回
   if (ticks <= 0)
   {
     return;
@@ -96,8 +96,8 @@ timer_sleep (int64_t ticks)
   ASSERT (intr_get_level () == INTR_ON);
   enum intr_level old_level = intr_disable ();
   struct thread *current_thread = thread_current ();
-  current_thread->ticks_blocked = ticks;
-  thread_block ();
+  current_thread->ticks_blocked = ticks;              // 设置ticks_blocked
+  thread_block ();                                    // 阻塞
   intr_set_level (old_level);
 }
 
@@ -177,7 +177,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  thread_foreach (blocked_thread_check, NULL);
+  thread_foreach (blocked_thread_check, NULL);    // 检查线程ticks_blocked
   if (thread_mlfqs)
   {
     thread_increase_recent_cpu_by_one ();

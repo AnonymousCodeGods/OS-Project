@@ -95,8 +95,8 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    /* Record the time the thread has been blocked. */
-    int64_t ticks_blocked;
+    
+    int64_t ticks_blocked;              /* 记录线程睡眠时间 */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -125,7 +125,7 @@ typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_block (void);
-void blocked_thread_check (struct thread *t, void *aux UNUSED);
+void blocked_thread_check (struct thread *t, void *aux UNUSED);      /* 检查阻塞线程的睡眠时间 */
 void thread_unblock (struct thread *);
 
 struct thread *thread_current (void);
