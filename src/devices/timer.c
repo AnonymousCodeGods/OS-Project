@@ -178,7 +178,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
   thread_foreach (blocked_thread_check, NULL);
-  if (thread_mlfqs)
+  if (thread_mlfqs)//利用时钟中断处理函数来完成高级调度的有关更新 
   {
     thread_increase_recent_cpu_by_one ();
     if (ticks % TIMER_FREQ == 0)
