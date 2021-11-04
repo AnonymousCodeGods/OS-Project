@@ -177,7 +177,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  thread_foreach (blocked_thread_check, NULL);    // 检查线程ticks_blocked
+  thread_foreach (blocked_thread_check, NULL);    // m1 检查线程ticks_blocked
   if (thread_mlfqs)//利用时钟中断处理函数来完成高级调度的有关更新 
   {
     thread_increase_recent_cpu_by_one ();
