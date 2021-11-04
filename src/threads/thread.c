@@ -11,7 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#include "threads/fixed_point.h"
+#include "threads/fixed_point.h"//引入浮点数计算的头函数 
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -704,10 +704,10 @@ lock_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *a
 
 /* Increase recent_cpu by 1. */
 void
-thread_increase_recent_cpu_by_one (void)
+thread_increase_recent_cpu_by_one (void)//每一个tick，recent_cpu会+1 
 {
-  ASSERT (thread_mlfqs);
-  ASSERT (intr_context ());
+  ASSERT (thread_mlfqs);//断言此时的这个bool变量为true 
+  ASSERT (intr_context ());//断言为外部中断 
 
   struct thread *current_thread = thread_current ();
   if (current_thread == idle_thread)
@@ -738,13 +738,13 @@ thread_update_load_avg_and_recent_cpu (void)
   ASSERT (intr_context ());
 
   size_t ready_threads = list_size (&ready_list);
-  if (thread_current () != idle_thread)
-    ready_threads++;
+  if (thread_current () != idle_thread)//不是空闲的，那就在ready里面加一个（计算load_avg要用）
+    ready_threads++;//处于就绪态和运行态的线程
   load_avg = ADD (DIV_MIX (MULT_MIX (load_avg, 59), 60), DIV_MIX (CONST (ready_threads), 60));
 
   struct thread *t;
   struct list_elem *e = list_begin (&all_list);
-  for (; e != list_end (&all_list); e = list_next (e))
+  for (; e != list_end (&all_list); e = list_next (e))//就是对所有队列里的每一个线程去更新一下cpu和priority（更新操作的核心）
   {
     t = list_entry(e, struct thread, allelem);
     if (t != idle_thread)
@@ -754,5 +754,4 @@ thread_update_load_avg_and_recent_cpu (void)
     }
   }
 }
-
 
